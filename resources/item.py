@@ -12,6 +12,11 @@ class Item(Resource):
                         required=True,
                         help="This field cannot be left blank!"
                         )
+    parser.add_argument('store_id',
+                        type=int,
+                        required=True,
+                        help="Every item needs a store id"
+                        )
     @jwt_required()
     def get(self, name):
         item = ItemModel.find_by_name(name)
@@ -33,7 +38,7 @@ class Item(Resource):
         return item.json(), 201
 
     def delete(self, name):
-        item = ItemModel.find_by_name()
+        item = ItemModel.find_by_name(name)
         if item:
             item.delete_from_db()
         return {'message': 'Item deleted'}
@@ -48,10 +53,10 @@ class Item(Resource):
         request_data = parser.parse_args()
 
         item = ItemModel.find_by_name(name)
-        updated_item = ItemModel(name, request_data['price'])
+        updated_item = ItemModel(name, request_data['price'], request_data['store_id'])
         if not item:
             try:
-                item = ItemModel(name, request_data['price'])
+                item = ItemModel(name, request_data['price'], request_data['store_id'])
             except:
                 return {"message": "An error occured inserting the item {test}"}, 500
         else:

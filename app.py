@@ -1,60 +1,40 @@
-from flask import Flask, jsonify, request, render_template
-from flask_restful import Resource, Api, reqparse
-from flask_jwt import JWT, jwt_required
+from flask import Flask
+from flask_restful import Api
+from flask_jwt import JWT
 from security import authenticate, identity
+from datetime import timedelta
+
+from resources.user import UserRegister
+from resources.store import Store, StoreList
+from resources.item import Item, ItemList
+
+
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'ryan'
+app.config['JWT_EXPIRATION_DELTA'] = timedelta(seconds=1800)
 api = Api(app)
+
+@app.before_first_request
+def create_tables():
+    db.create_all()
 
 jwt = JWT(app, authenticate, identity) #auth
 
 items = []
 
 
-class Item(Resource):
-    @jwt_required()
-    def get(self, name):
-        item = next(filter(lambda x: x['name'] == name, items), None)
-        return {'Item': item}, 200 if item else 404
 
-    def post(self, name):
-        if next(filter(lambda x: x['name'] == name, items), None):
-            return {'message': "An item with name '{}' already exists".format(name)}, 400
-
-        parser = reqparse.RequestParser()
-        request_data = parser.parse_args()
-        item = {'name': name, 'price': request_data['price']}
-        items.append(item)
-        return item, 201
-
-    def delete(self, name):
-        global items
-        items = list(filter(lambda x: x['name'] != name, items))
-        return {'message': 'Item deleted'}
-
-    def put(self, name):
-        parser = reqparse.RequestParser()
-        parser.add_argument('price',
-           type=float,
-           required=True,
-           help='This field is required'
-        )
-        request_data = parser.parse_args()
-
-        item = next(filter(lambda x: x['name'] == name, items), None)
-        if not item:
-            item = {'name': name, 'price': request_data['price']}
-            items.append(item)
-        else:
-            item.update(request_data)
-        return item
-
-class ItemList(Resource):
-    def get(self):
-        return {'items': items}
 
 api.add_resource(Item, '/item/<string:name>')
 api.add_resource(ItemList, '/items')
+api.add_resource(Store, '/store/<string:name>')
+api.add_resource(StoreList, '/stores')
+api.add_resource(UserRegister, '/register')
 
-app.run(port=5000, debug=True)
+if __name__ == '__main__':
+    from db import db
+    db.init_app(app)
+    app.run(port=5000, debug=True)
